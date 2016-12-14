@@ -5,6 +5,9 @@ Test repository for porting mbed-os to the ubirch#1
 
 - clone mbed-os and switch to branch `target-ubirch` to get the specific ubirch #1 changes
 - link mbed-os into this directory at the top-level
+	- `ln -sf <MBED-OS_DIR_PATH>/mbed-os .`
+- add target `mbed target UBIRCH1`
+- add toolchain `mbed toolchain GCC_ARM`
 - run `mbed compile`
 
 # Flashing
