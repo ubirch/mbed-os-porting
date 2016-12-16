@@ -14,3 +14,8 @@ Test repository for porting mbed-os to the ubirch#1
 
 - run `./bin/flash.sh` to flash using NXP blhost tool
 - alternatively, if you have SEGGER tools installed, run `./bin/flash.sh -j`
+
+# Importing BME280 Library to the project
+- In the project directory run
+      `mbed add http://mbed.org/users/MACRUM/code/BME280/`
+- run `mbed compile` 
