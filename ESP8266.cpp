@@ -90,42 +90,66 @@ bool ESP8266::modem_register(int32_t timeout)
         bearer = sendCommand("AT+CREG?", NULL, creg_response, 5000);
 
         printf("the creg str %s\r\n", creg_response);
-
+//        +CREG: 0,2 OK
         // if (bearer && tmr.read_ms() < timeout) {
         if (bearer) {
             printf("the beared\n");
 
 //             tmr.stop();
-            string resultnString(creg_response);
-            uint8_t pos1 = 0;//, pos2 = 0;
+            string resultnString(creg_response, 9, 1);
+            printf("\r\n the creg result %s\r\n", resultnString.c_str());
 
-            pos1 = resultnString.find("+CREG:");
-            pos1 = resultnString.find(',', pos1);
-            pos2 = pos1 + 2;
-//            strcpy((char *)status, resultnString.substr(pos1 + 1, pos1 + 2).c_str());//, 1);
-            printf("\r\nthe status is %s\r\n", resultnString.substr(pos1 + 1, pos1 + 2).c_str());
-            printf("the beared22\n");
+            if (!resultnString.compare("5")) {
+                return true;
+            }
+//            uint8_t pos1 = 0, pos2 = 0;
+//
+//            pos1 = resultnString.find("+CREG:");
+//            pos1 = resultnString.find(',', pos1);
+//            pos2 = pos1 + 2;
+////            strcpy((char *)status, resultnString.substr(pos1 + 1, pos1 + 2).c_str());//, 1);
+//            printf("\r\nthe status is %s\r\n", resultnString.substr(pos1 + 1, pos1 + 2).c_str());
 
-            cnt = 0;
-            sendCommand("AT+IPR?", "+IPR: 9600", NULL, 10000);
-
-            return true;
+//            cnt = 0;
         }
+        Thread::wait(1000);
         cnt--;
         // if ()
     }
     return false;
 }
 
-ESP8266::modem_gprd_attach(const char *apn, const char *user, const char *password, uint32_t timeout) {
+bool ESP8266::modem_gprs_attach(const char *apn, const char *user, const char *password, uint32_t timeout) {
     //start the timer
 
     sendCommand("AT+QIDEACT", "OK", NULL, 2000);
 
-    bool attached;
+    bool attached = false;
     do {
-        sendCommand("AT+CGATT=1")
+        attached = sendCommand("AT+CGATT=1", "OK", NULL, 20000);
+        Thread::wait(500);
+//        attached = sendCommand("AT+CGATT=1", "OK", NULL, 20000);
+        if (!attached) Thread::wait(3000); // check for proper wait function to use
+    } while (!attached); // include timer here
+    if (!attached) return false;
+
+    if (!sendCommand("AT+QIFGCNT=0", "OK", NULL, 3000)){
+        return false;
     }
+
+//    if (!sendCommand( "AT+QICSGP=1", \""(string)apn"\", \""(string)user"\", \""(string)password"\")) {
+//        return false;
+//    }
+
+    if (!sendCommand("AT+QIREGAPP", "OK", NULL, 3000)){
+        return false;
+    }
+
+    if (!sendCommand("AT+QIACT", "OK", NULL, 9000)){
+        return false;
+    }
+
+    return attached;
 }
 
 bool ESP8266::connect() {
@@ -340,8 +364,11 @@ void ESP8266::reset()
     printf("noe set the baud rate\r\n");
     sendCommand("AT+IPR=9600", "OK", NULL, 5000);
 
+    sendCommand("AT+QIURC=0", "OK", NULL, 3000);
+
     // char ack_str[];
-    sendCommand("AT+IPR?", "+IPR: 9600", NULL, 10000);
+//    sendCommand("AT+IPR?", "+IPR: 9600", NULL, 10000);
+    sendCommand("ATE0", "OK", NULL, 10000);
     state.associated = false;
 
 }
@@ -415,6 +442,7 @@ int ESP8266::send(const char * buf, int len)
     return len;
 }
 
+//bool ESP8266::newsendCommand
 bool ESP8266::sendCommand(const char * cmd, const char * ACK, char * res, int timeout)
 {
     char read;
@@ -470,6 +498,7 @@ bool ESP8266::sendCommand(const char * cmd, const char * ACK, char * res, int ti
                 if ( read != '\r' && read != '\n') {
                     checking += read;
                     found = checking.find(ACK);
+
                     if (found != string::npos) {
                         wait(0.01f);
 
@@ -482,10 +511,26 @@ bool ESP8266::sendCommand(const char * cmd, const char * ACK, char * res, int ti
                 }
             }
         }
-        DBG("check: %s", checking.c_str());
 
+        if (!strcmp(ACK, checking.c_str())) {
+            DBG("check: %s", checking.c_str());
+            attach_rx(true);
+
+            return true;
+        }
+//        printf("the checking str is %s\r\n", checking.c_str());
+
+//        size_t new_found = checking.find(ACK);
+
+        // or try to get the string and do memcmp/strsmp
+        // strcmp(checking, ACK);
+//        if (new_found) {
+//            string new_sub_str(checking, new_found, strlen(ACK));
+//        }
+        DBG("check: %s", checking.c_str());
         attach_rx(true);
-        return result;
+
+        return false;
     }
 
     //the user wants the result from the command (ACK == NULL, res != NULL)

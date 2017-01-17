@@ -38,6 +38,7 @@ void modem_thread(void const *args) {
     modem1.reset();
 
     modem1.modem_register(10000);
+    modem1.modem_gprs_attach("eseye.com", "ubirch", "internet", 10000);
     // if(modem.connect()) {
     printf("Connected\r\n");
     // } else {

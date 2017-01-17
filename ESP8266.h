@@ -63,7 +63,7 @@ public:
 
     bool modem_register(int32_t timeout);
 
-    bool gprs_attach(const char *apn, const char *user_name, const char *password);
+    bool modem_gprs_attach(const char *apn, const char *user, const char *password, uint32_t timeout);
 
     /**
     * Same as Join: connect to the ssid and get DHCP settings
