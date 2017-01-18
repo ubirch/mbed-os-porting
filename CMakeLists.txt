@@ -5,6 +5,8 @@ set(CMAKE_BUILD_TYPE Debug)
 project(calliope C CXX)
 
 # == MBED OS 5 settings ==
+set(FEATURES netsocket)
+
 add_definitions(
         -DTOOLCHAIN_GCC
         -DCPU_MK82FN256VLL15
@@ -14,6 +16,7 @@ add_definitions(
         -DMBED_CONF_NSAPI_PRESENT
         -DMBED_CONF_EVENTS_PRESENT
         -D__MBED__
+        -DDEVICE_I2C
 )
 
 set(MBED_OS
@@ -39,10 +42,18 @@ set(MBED_OS
         )
 
 set(MBED_OS_SRCS "")
-foreach(DIR in ${MBED_OS})
-    file(GLOB includes ${DIR}/*.cpp ${DIR}/*.c ${DIR}/*.s ${DIR}/*.S)
-    list(APPEND MBED_OS_SRCS ${includes})
-endforeach()
+foreach (DIR in ${MBED_OS})
+    if (DIR MATCHES "mbed-os/features")
+        foreach(FEATURE in ${FEATURES})
+            file(GLOB_RECURSE includes
+                    ${DIR}/${FEATURE}/*.cpp ${DIR}/${FEATURE}/*.c ${DIR}/${FEATURE}/*.s ${DIR}/${FEATURE}/*.S)
+            list(APPEND MBED_OS_SRCS ${includes})
+        endforeach()
+    else ()
+        file(GLOB includes ${DIR}/*.cpp ${DIR}/*.c ${DIR}/*.s ${DIR}/*.S)
+        list(APPEND MBED_OS_SRCS ${includes})
+    endif ()
+endforeach ()
 
 add_library(mbed-os ${MBED_OS_SRCS})
 include_directories(${MBED_OS})
