@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.5)
-set(CMAKE_TOOLCHAIN_FILE microbit/yotta_targets/mbed-gcc/CMake/toolchain.cmake)
 set(CMAKE_BUILD_TYPE Debug)
 
 project(calliope C CXX)
