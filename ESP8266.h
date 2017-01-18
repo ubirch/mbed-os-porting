@@ -65,6 +65,14 @@ public:
 
     bool modem_gprs_attach(const char *apn, const char *user, const char *password, uint32_t timeout);
 
+    bool modem_http_init();
+
+    bool modem_http_prepare(const char *url);
+
+    bool modem_http_post(const char *url, size_t *res_size, uint8_t *request, size_t req_size);
+
+    bool modem_http_get(const char *url, size_t *res_size);
+
     /**
     * Same as Join: connect to the ssid and get DHCP settings
     * @return true if successful
@@ -203,6 +211,7 @@ public:
 protected:
     RawSerial wifi;
     DigitalOut reset_pin;
+    DigitalOut modem_power;
     char phrase[30];
     char ssid[30];
     char ipString[20];

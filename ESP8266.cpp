@@ -24,9 +24,9 @@
 
 //Debug is disabled by default
 #if 1
-#define DBG(x, ...)  printf("\r\n[ESP8266 : DBG]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__); 
-#define WARN(x, ...) printf("\r\n[ESP8266 : WARN]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__); 
-#define ERR(x, ...)  printf("\r\n[ESP8266 : ERR]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__); 
+#define DBG(x, ...)  printf("[ESP8266 : DBG]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__);
+#define WARN(x, ...) printf("[ESP8266 : WARN]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__);
+#define ERR(x, ...)  printf("[ESP8266 : ERR]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__);
 #else
 #define DBG(x, ...) //wait_us(10);
 #define WARN(x, ...) //wait_us(10);
@@ -34,7 +34,7 @@
 #endif
 
 #if 1
-#define INFO(x, ...) printf("\r\n[ESP8266 : INFO]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__); 
+#define INFO(x, ...) printf("[ESP8266 : INFO]"x" \t[%s,%d]\r\n", ##__VA_ARGS__,__FILE__,__LINE__);
 #else
 #define INFO(x, ...)
 #endif
@@ -46,7 +46,7 @@ ESP8266 * ESP8266::inst;
 char* ip = NULL;
 
 ESP8266::ESP8266(PinName tx, PinName rx, PinName reset, const char *ssid, const char *phrase, uint32_t baud) :
-    wifi(tx, rx), reset_pin(reset), buf_ESP8266(ESP_MBUFFE_MAX)
+    wifi(tx, rx), reset_pin(reset), modem_power(GSM_POWER), buf_ESP8266(ESP_MBUFFE_MAX)
 {
     INFO("Initializing ESP8266 object");
     memset(&state, 0, sizeof(state));
@@ -90,31 +90,18 @@ bool ESP8266::modem_register(int32_t timeout)
         bearer = sendCommand("AT+CREG?", NULL, creg_response, 5000);
 
         printf("the creg str %s\r\n", creg_response);
-//        +CREG: 0,2 OK
+
         // if (bearer && tmr.read_ms() < timeout) {
         if (bearer) {
-            printf("the beared\n");
-
 //             tmr.stop();
             string resultnString(creg_response, 9, 1);
-            printf("\r\n the creg result %s\r\n", resultnString.c_str());
 
             if (!resultnString.compare("5")) {
                 return true;
             }
-//            uint8_t pos1 = 0, pos2 = 0;
-//
-//            pos1 = resultnString.find("+CREG:");
-//            pos1 = resultnString.find(',', pos1);
-//            pos2 = pos1 + 2;
-////            strcpy((char *)status, resultnString.substr(pos1 + 1, pos1 + 2).c_str());//, 1);
-//            printf("\r\nthe status is %s\r\n", resultnString.substr(pos1 + 1, pos1 + 2).c_str());
-
-//            cnt = 0;
         }
         Thread::wait(1000);
         cnt--;
-        // if ()
     }
     return false;
 }
@@ -122,24 +109,29 @@ bool ESP8266::modem_register(int32_t timeout)
 bool ESP8266::modem_gprs_attach(const char *apn, const char *user, const char *password, uint32_t timeout) {
     //start the timer
 
-    sendCommand("AT+QIDEACT", "OK", NULL, 2000);
+    if (!sendCommand("AT+QIDEACT", "DEACT OK", NULL, 2000)) {
+        return false;
+    }
 
     bool attached = false;
     do {
-        attached = sendCommand("AT+CGATT=1", "OK", NULL, 20000);
-        Thread::wait(500);
-//        attached = sendCommand("AT+CGATT=1", "OK", NULL, 20000);
+        attached = sendCommand("AT+CGATT=1", "OK", NULL, 5000);
+
         if (!attached) Thread::wait(3000); // check for proper wait function to use
+
     } while (!attached); // include timer here
+
     if (!attached) return false;
 
     if (!sendCommand("AT+QIFGCNT=0", "OK", NULL, 3000)){
         return false;
     }
 
-//    if (!sendCommand( "AT+QICSGP=1", \""(string)apn"\", \""(string)user"\", \""(string)password"\")) {
-//        return false;
-//    }
+    if (!sendCommand(( "AT+QICSGP=1, \"" + (string) apn + "\", \""+ (string) user + "\","
+                  "\""+ (string) password + "\" ").c_str(), "OK", NULL, 10000)) {
+
+        return false;
+    }
 
     if (!sendCommand("AT+QIREGAPP", "OK", NULL, 3000)){
         return false;
@@ -155,10 +147,20 @@ bool ESP8266::modem_gprs_attach(const char *apn, const char *user, const char *p
 bool ESP8266::connect() {
     char imei[] = {0};
     sendCommand("AT+QGSN", NULL, imei, 5000);
-
+//    also include device ID/ uuid - one function for all the uuid stuff
     return join();
 }
 
+bool ESP8266::modem_http_prepare(const char *url){
+
+    size_t url_len = strlen(url);
+
+    sendCommand("AT+QHTTPURL=15, 30", "CONNECT", NULL, 50000);
+
+    sendCommand("www.google.com", "OK", NULL, 30000);
+
+    return 0;
+}
 bool ESP8266::is_connected()
 {
     return true;
@@ -351,26 +353,32 @@ bool ESP8266::gethostbyname(const char * host, char * ip)
 
 void ESP8266::reset()
 {
+    // Enable the modem
+    modem_power = 1;
+
+    // Toggle the PWKEY to start the modem
     reset_pin = 1;
     wait_ms(200);
     reset_pin = 0;
-    //wait(1);
-    //reset_pin = !reset_pin
-    //send("+++",3);
     wait(1);
     reset_pin = 1;
+
     state.cmdMode = true;
-    if (!sendCommand("AT", "OK", NULL, 5000)) printf("at not ok\n\r");
-    printf("noe set the baud rate\r\n");
+
+    for (int i = 0; i < 5; i++) {
+        if (!sendCommand("AT", "OK", NULL, 5000)) {
+            DBG("AT failed");
+            Thread::wait(500);
+        }
+    }
+
+    sendCommand("ATE0", "OK", NULL, 5000);
+
     sendCommand("AT+IPR=9600", "OK", NULL, 5000);
 
-    sendCommand("AT+QIURC=0", "OK", NULL, 3000);
+    sendCommand("AT+QIURC=0", "OK", NULL, 5000);
 
-    // char ack_str[];
-//    sendCommand("AT+IPR?", "+IPR: 9600", NULL, 10000);
-    sendCommand("ATE0", "OK", NULL, 10000);
     state.associated = false;
-
 }
 
 bool ESP8266::reboot()
@@ -491,7 +499,7 @@ bool ESP8266::sendCommand(const char * cmd, const char * ACK, char * res, int ti
                 DBG("check:\t %s", checking.c_str());
 
                 attach_rx(true);
-                return -1;
+                return false;
             } else if (readable()) {
                 read = getc();
                 //printf("%c",read); //debug echo
@@ -513,7 +521,7 @@ bool ESP8266::sendCommand(const char * cmd, const char * ACK, char * res, int ti
         }
 
         if (!strcmp(ACK, checking.c_str())) {
-            DBG("check: %s", checking.c_str());
+            DBG("matched check: %s", checking.c_str());
             attach_rx(true);
 
             return true;
@@ -527,7 +535,7 @@ bool ESP8266::sendCommand(const char * cmd, const char * ACK, char * res, int ti
 //        if (new_found) {
 //            string new_sub_str(checking, new_found, strlen(ACK));
 //        }
-        DBG("check: %s", checking.c_str());
+        DBG("did not match check: %s", checking.c_str());
         attach_rx(true);
 
         return false;

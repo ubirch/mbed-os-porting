@@ -27,24 +27,20 @@ void bme_thread(void const *args) {
          env_sensor.getPressure(),
          env_sensor.getHumidity()
          );
-      Thread::wait(3000);
+      Thread::wait(5000);
     }
 }
 
 void modem_thread(void const *args) {
 
-    modem_power = true;
-    Thread::wait(500);
     modem1.reset();
 
     modem1.modem_register(10000);
-    modem1.modem_gprs_attach("eseye.com", "ubirch", "internet", 10000);
-    // if(modem.connect()) {
-    printf("Connected\r\n");
-    // } else {
-    //     printf("Not connected\r\n");
-    // }
 
+    if (modem1.modem_gprs_attach("eseye.com", "ubirch", "internet", 10000)){
+
+        printf("Connected\r\n");
+    }
 }
 
 osThreadDef(led_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
@@ -58,7 +54,7 @@ int main() {
     printf("THREADS!\r\n");
 
     osThreadCreate(osThread(led_thread), NULL);
-//    osThreadCreate(osThread(bme_thread), NULL);
+    osThreadCreate(osThread(bme_thread), NULL);
     osThreadCreate(osThread(modem_thread), NULL);
 
     while (true) {
