@@ -1,16 +1,15 @@
 #include "mbed.h"
 #include "BME280.h"
-#include "ESP8266Interface.h"
+//#include "temp/ESP8266Interface.h"
+#include "M66/M66ATParser/M66ATParser.h"
 
 #define BME280_DEVICE_ADDRESS 0x77  //!< BME280 device address (same address for multiple devices)
 #define BME280_CHIP_ID        0x60  //!< BME280 chip id is fixed
 
 DigitalOut led1(LED1);
-DigitalOut modem_power(GSM_POWER);
 
 BME280     env_sensor(I2C_SDA, I2C_SCL);
-ESP8266Interface modem(GSM_UART_TX, GSM_UART_RX, GSM_PWRKEY, "121", "1212", 9600);
-ESP8266 modem1(GSM_UART_TX, GSM_UART_RX, GSM_PWRKEY, "111", "1212", 9600);
+M66ATParser modem(GSM_UART_TX, GSM_UART_RX, GSM_PWRKEY, GSM_POWER, true);
 
 void led_thread(void const *args) {
     while (true) {
@@ -33,18 +32,26 @@ void bme_thread(void const *args) {
 
 void modem_thread(void const *args) {
 
-    modem1.reset();
 
-    modem1.modem_register(10000);
+    if(modem.startup()) {
+        if(modem.connect("eseye.com", "ubirch", "internet")) {
+            if(modem.open("TCP", 1, "46.231.178.105", 80)) {
+                printf("connected\r\n");
+                if(!modem.send(1, "GET / HTTP/1.1\r\n\r\n", 18)) {
+                    printf("send failed\r\n");
+                }
 
-    if (modem1.modem_gprs_attach("eseye.com", "ubirch", "internet", 10000)){
-
-        printf("Connected\r\n");
+                uint8_t data[128];
+                unsigned int received = modem.recv(1, data, 128);
+                printf("received %d bytes\r\n", received);
+//                modem.close(1);
+            }
+        }
     }
 }
 
-osThreadDef(led_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
-osThreadDef(bme_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
+//osThreadDef(led_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
+//osThreadDef(bme_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
 osThreadDef(modem_thread, osPriorityNormal, DEFAULT_STACK_SIZE);
 
 // main() runs in its own thread in the OS
@@ -53,8 +60,8 @@ int main() {
 
     printf("THREADS!\r\n");
 
-    osThreadCreate(osThread(led_thread), NULL);
-    osThreadCreate(osThread(bme_thread), NULL);
+//    osThreadCreate(osThread(led_thread), NULL);
+//    osThreadCreate(osThread(bme_thread), NULL);
     osThreadCreate(osThread(modem_thread), NULL);
 
     while (true) {
