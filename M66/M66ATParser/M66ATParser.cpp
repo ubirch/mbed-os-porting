@@ -34,13 +34,13 @@ bool M66ATParser::startup(void)
     bool success = reset()
         && _parser.send("AT+QIMUX=1")
         && _parser.recv("OK")
-        && _parser.send("AT+QINDI=2")
+//        && _parser.send("AT+QINDI=2")
         && _parser.recv("OK");
 
     // TODO identify the URC for data available
-    _parser.oob("+RECEIVE", this, &M66ATParser::_packet_handler);
+    _parser.oob("+RECEIVE: ", this, &M66ATParser::_packet_handler);
 
-    return success;
+return success;
 }
 
 bool M66ATParser::reset(void)
@@ -156,7 +156,7 @@ bool M66ATParser::open(const char *type, int id, const char* addr, int port)
         return false;
     }
 
-    if (!(_parser.send("AT+QINDI=1") && _parser.recv("OK"))) return false;
+//    if (!(_parser.send("AT+QINDI=1") && _parser.recv("OK"))) return false;
 
     if (!(_parser.send("AT+QIDNSIP=1") && _parser.recv("OK"))) return false;
 
@@ -166,20 +166,24 @@ bool M66ATParser::open(const char *type, int id, const char* addr, int port)
 
 bool M66ATParser::send(int id, const void *data, uint32_t amount)
 {
-    int id = 0, sc = 0, sid = 0;
+    _parser.send("AT+QISRVC=1");
+    _parser.recv("OK");
+
+    int sc = 0, sid = 0, idr = 0;
 
     // TODO if this retry is required?
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
-        if (_parser.send("AT+QISEND=%d,%d\r\n", id, amount)
+        if (_parser.send("AT+QISEND=%d,%d", id, amount)
             && _parser.write((char*)data, (int)amount) >= 0
-            && _parser.recv("SEND OK")
-            && _parser.recv("+QIRDI: %d,%d,%d", id, sc, sid)){
+            && _parser.recv("SEND OK")){
 
-            if (_parser.send("AT+QIRD=%d,%d,%d,325", id, sc, sid)) return true;
+            int theid =0;
+            uint32_t  theamount =0;
+            _parser.recv("+RECEIVE: %d, %d", theid, theamount);
         }
     }
-    return false;
+    return true;
 }
 
 void M66ATParser::_packet_handler()
@@ -187,8 +191,10 @@ void M66ATParser::_packet_handler()
     int id;
     uint32_t amount;
 
+    printf("+RECEIVE CALLBACK\r\n");
+
     // parse out the packet
-    if (!_parser.recv(" %d,%d", &id, &amount)) {
+    if (!_parser.recv("%d, %d", &id, &amount)) {
         return;
     }
 
