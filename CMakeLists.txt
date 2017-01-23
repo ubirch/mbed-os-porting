@@ -16,6 +16,7 @@ add_definitions(
         -DMBED_CONF_EVENTS_PRESENT
         -D__MBED__
         -DDEVICE_I2C
+        -DDEVICE_SERIAL
 )
 
 set(MBED_OS
@@ -64,15 +65,15 @@ target_include_directories(BME280 PUBLIC BME280)
 add_library(M66
         M66/M66ATParser/M66ATParser.cpp
         M66/M66ATParser/ATParser/ATParser.cpp
-        M66/M66ATParser/ATParser/BufferedSerial/BufferedPrint.c
-        M66/M66ATParser/ATParser/BufferedSerial/BufferedSerial.cpp
-        M66/M66ATParser/ATParser/BufferedSerial/Buffer/MyBuffer.cpp
+        M66/M66ATParser/BufferedSerial/BufferedPrint.c
+        M66/M66ATParser/BufferedSerial/BufferedSerial.cpp
+        M66/M66ATParser/BufferedSerial/Buffer/MyBuffer.cpp
         )
 target_include_directories(M66 PUBLIC
         M66/M66ATParser
         M66/M66ATParser/ATParser
-        M66/M66ATParser/ATParser/BufferedSerial
-        M66/M66ATParser/ATParser/BufferedSerial/Buffer
+        M66/M66ATParser/BufferedSerial
+        M66/M66ATParser/BufferedSerial/Buffer
         )
 
 add_executable(mbed-os-porting

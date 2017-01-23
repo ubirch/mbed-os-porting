@@ -27,7 +27,7 @@
 class M66ATParser
 {
 public:
-    M66ATParser(PinName tx, PinName rx, PinName rst, PinName pwr, bool debug=false);
+    M66ATParser(PinName txPin, PinName rxPin, PinName rstPin, PinName pwrPin, bool debug=false);
 
     /**
     * Startup the M66
@@ -172,9 +172,14 @@ public:
         attach(Callback<void()>(obj, method));
     }
 
+    bool tx(const char *pattern, ...);
+    int rx(const char *pattern, ...);
+
+    int checkURC(const char *response);
+    size_t readline(char *buffer, size_t max);
+
 private:
     BufferedSerial _serial;
-    ATParser _parser;
 
     DigitalOut _powerPin;
     DigitalOut _resetPin;
