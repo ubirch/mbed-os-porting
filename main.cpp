@@ -42,11 +42,18 @@ void modem_thread(void const *args) {
                 }
 
                 uint8_t data[128];
-                unsigned int received = modem.recv(1, data, 128);
+                int received = modem.recv(1, data, 128);
+
                 printf("received %d bytes\r\n", received);
 //                modem.close(1);
+            } else {
+                printf("ERROR: open()\r\n");
             }
+        } else {
+            printf("ERROR: connect()\r\n");
         }
+    } else {
+        printf("ERROR: startup()\r\n");
     }
 }
 

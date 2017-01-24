@@ -17,17 +17,17 @@
 #ifndef M66ATPARSER_H
 #define M66ATPARSER_H
 
+#include "mbed.h"
 #include <stdint.h>
 #include <features/netsocket/nsapi_types.h>
-#include "ATParser.h"
+#include <BufferedSerial/BufferedSerial.h>
 
 /** M66 AT Parser Interface class.
     This is an interface to a M66 modem.
  */
-class M66ATParser
-{
+class M66ATParser {
 public:
-    M66ATParser(PinName txPin, PinName rxPin, PinName rstPin, PinName pwrPin, bool debug=false);
+    M66ATParser(PinName txPin, PinName rxPin, PinName rstPin, PinName pwrPin, bool debug = false);
 
     /**
     * Startup the M66
@@ -75,12 +75,12 @@ public:
     */
     const char *getMACAddress(void);
 
-     /** Get the local gateway
-     *
-    * TODO: check if we need it, or to change this method
-     *  @return         Null-terminated representation of the local gateway
-     *                  or null if no network mask has been recieved
-     */
+    /** Get the local gateway
+    *
+   * TODO: check if we need it, or to change this method
+    *  @return         Null-terminated representation of the local gateway
+    *                  or null if no network mask has been recieved
+    */
     const char *getGateway();
 
     /** Get the local network mask
@@ -107,7 +107,7 @@ public:
     * @param addr the IP address of the destination
     * @return true only if socket opened successfully
     */
-    bool open(const char *type, int id, const char* addr, int port);
+    bool open(const char *type, int id, const char *addr, int port);
 
     /**
     * Sends data to an open socket
@@ -167,16 +167,24 @@ public:
     * @param obj pointer to the object to call the member function on
     * @param method pointer to the member function to call
     */
-    template <typename T, typename M>
+    template<typename T, typename M>
     void attach(T *obj, M method) {
         attach(Callback<void()>(obj, method));
     }
 
     bool tx(const char *pattern, ...);
-    int rx(const char *pattern, ...);
+
+    int scan(const char *pattern, ...);
+
+    bool rx(const char *pattern);
+
 
     int checkURC(const char *response);
+
     size_t readline(char *buffer, size_t max);
+
+    size_t read(char *buffer, size_t max);
+
 
 private:
     BufferedSerial _serial;
@@ -189,7 +197,8 @@ private:
         uint32_t len;
         // data follows
     } *_packets, **_packets_end;
-    void _packet_handler();
+
+    void _packet_handler(const char *response);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];

@@ -64,14 +64,12 @@ target_include_directories(BME280 PUBLIC BME280)
 
 add_library(M66
         M66/M66ATParser/M66ATParser.cpp
-        M66/M66ATParser/ATParser/ATParser.cpp
         M66/M66ATParser/BufferedSerial/BufferedPrint.c
         M66/M66ATParser/BufferedSerial/BufferedSerial.cpp
         M66/M66ATParser/BufferedSerial/Buffer/MyBuffer.cpp
         )
 target_include_directories(M66 PUBLIC
         M66/M66ATParser
-        M66/M66ATParser/ATParser
         M66/M66ATParser/BufferedSerial
         M66/M66ATParser/BufferedSerial/Buffer
         )
