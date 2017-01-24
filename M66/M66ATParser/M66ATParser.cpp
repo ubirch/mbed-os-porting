@@ -251,7 +251,7 @@ int32_t M66ATParser::recv(int id, void *data, uint32_t amount)
         }
 
         // Wait for inbound packet
-        // TODO check what happens when we receive a packet
+        // TODO check what happens when we receive a packet (like OK)
         // TODO the response code may be different if connection is still open
         // TODO it may need to be moved to packet handler
         int receivedId;
