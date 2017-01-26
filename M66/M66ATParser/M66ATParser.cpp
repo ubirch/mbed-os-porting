@@ -30,6 +30,7 @@ M66ATParser::M66ATParser(PinName txPin, PinName rxPin, PinName rstPin, PinName p
     _serial.baud(115200);
 }
 
+//TODO chec if we need to make the QIMUS configurable by passing a variable
 bool M66ATParser::startup(void)
 {
     _powerPin = 1;
@@ -277,7 +278,7 @@ bool M66ATParser::close(int id)
 
 void M66ATParser::setTimeout(uint32_t timeout_ms)
 {
-    //_serial.setTimeout(timeout_ms);
+    _timeout = timeout_ms;
 }
 
 bool M66ATParser::readable()
@@ -351,16 +352,6 @@ int M66ATParser::checkURC(const char *response) {
         _packet_handler(response);
         return 0;
     }
-
-//    size_t len = strlen(response);
-//    for (int i = 0; URC[i] != NULL; i++) {
-//        const char *urc = URC[i];
-//        size_t urc_len = strlen(URC[i]);
-//        if (len >= urc_len && !strncmp(urc, response, urc_len)) {
-//            CSTDEBUG("GSM INFO !! [%02d] %s\r\n", i, response);
-//            return i;
-//        }
-//    }
     return -1;
 }
 

@@ -200,6 +200,7 @@ private:
 
     void _packet_handler(const char *response);
 
+    uint32_t _timeout;
     char _ip_buffer[16];
     char _gateway_buffer[16];
     char _netmask_buffer[16];
