@@ -1,4 +1,4 @@
-/* ESP8266 implementation of NetworkInterfaceAPI
+/* M66 GSM Modem implementation of NetworkInterfaceAPI
  * Copyright (c) 2015 ARM Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,21 +17,22 @@
 #ifndef M66_INTERFACE_H
 #define M66_INTERFACE_H
 
-#include "mbed.h"
+#include"mbed.h"
 #include "M66ATParser.h"
-
 
 #define M66_SOCKET_COUNT 5
 
 /** M66Interface class
  *  Implementation of the NetworkStack for the M66 GSM Modem
  */
-class M66Interface : public NetworkStack, public NetworkInterface
+class M66Interface : public NetworkStack, public CellularInterface
 {
 public:
     /** M66Interface lifetime
      * @param tx        TX pin
      * @param rx        RX pin
+     * @param rstPin    Reset pin
+     * @param pwrPin    PowerKey pin
      * @param debug     Enable debugging
      */
     M66Interface(PinName tx, PinName rx, PinName rstPin, PinName pwrPin, bool debug = false);
@@ -43,7 +44,18 @@ public:
      *
      *  @return         0 on success, negative error code on failure
      */
-     //TODO we do not pass apn stuff, set it and get it from protected thingy
+    virtual int connect();
+
+    /** Start the interface
+     *
+     *  Attempts to connect to a WiFi network.
+     *
+     *  @param ssid      Name of the network to connect to
+     *  @param pass      Security passphrase to connect to the network
+     *  @param security  Type of encryption for connection (Default: NSAPI_SECURITY_NONE)
+     *  @param channel   This parameter is not supported, setting it to anything else than 0 will result in NSAPI_ERROR_UNSUPPORTED
+     *  @return          0 on success, or error code on failure
+     */
     virtual int connect(const char *apn, const char *userName, const char *passPhrase);
 
     /** Set the GSM Modem network credentials
@@ -64,12 +76,6 @@ public:
      *  @return             IP address of the interface or null if not yet connected
      */
     virtual const char *get_ip_address();
-
-    /** Gets the current radio signal strength for active connection
-     *
-     * @return          Connection strength in dBm (negative value)
-     */
-    virtual int8_t get_rssi();
 
     /** Translates a hostname to an IP address with specific version
      *

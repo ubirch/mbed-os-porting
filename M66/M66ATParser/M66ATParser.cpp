@@ -30,7 +30,7 @@ M66ATParser::M66ATParser(PinName txPin, PinName rxPin, PinName rstPin, PinName p
     _serial.baud(115200);
 }
 
-//TODO chec if we need to make the QIMUS configurable by passing a variable
+//TODO chec if we need to make the QIMUX configurable by passing a variable
 bool M66ATParser::startup(void)
 {
     _powerPin = 1;
@@ -137,18 +137,6 @@ const char *M66ATParser::getIPAddress(void)
     return _ip_buffer;
 }
 
-// TODO is getMACAddress necessary?
-//const char *M66ATParser::getMACAddress(void)
-//{
-//    if (!(tx("AT+CIFSR")
-//        && rx("+CIFSR:STAMAC,\"%17[^\"]\"", _mac_buffer)
-//        && rx("OK"))) {
-//        return 0;
-//    }
-//
-//    return _mac_buffer;
-//}
-
 bool M66ATParser::isConnected(void)
 {
     return getIPAddress() != 0;
@@ -156,17 +144,17 @@ bool M66ATParser::isConnected(void)
 
 bool M66ATParser::open(const char *type, int id, const char* addr, int port)
 {
-    //IDs only 1-6
+    //IDs only 0-5
     if(id > 6) {
         return false;
     }
 
-//    if (!(tx("AT+QINDI=1") && rx("OK"))) return false;
-
+    CSTDEBUG("M66.QIDNSIP\r\n");
     if (!(tx("AT+QIDNSIP=1") && rx("OK"))) return false;
 
+    int id_resp;
     return tx("AT+QIOPEN=%d,\"%s\",\"%s\",\"%d\"", id, type, addr, port)
-        && rx("OK") && rx("1, CONNECT OK");
+        && rx("OK") && scan("%d, CONNECT OK", &id_resp);
 }
 
 bool M66ATParser::send(int id, const void *data, uint32_t amount)
@@ -178,6 +166,7 @@ bool M66ATParser::send(int id, const void *data, uint32_t amount)
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         if (tx("AT+QISEND=%d,%d", id, amount)
+            && rx(">")
             && _serial.write((char*)data, (int)amount) >= 0
             && rx("SEND OK")) {
             return true;
@@ -264,11 +253,12 @@ int32_t M66ATParser::recv(int id, void *data, uint32_t amount)
 
 bool M66ATParser::close(int id)
 {
+    int id_resp;
     // TODO check if this retry is required
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         if (tx("AT+QICLOSE=%d", id)
-            && rx("CLOSE OK")) {
+            && scan("%d, CLOSE OK", &id_resp)) {
             return true;
         }
     }
@@ -370,7 +360,6 @@ size_t M66ATParser::read(char *buffer, size_t max) {
     }
 
     return idx;
-
 }
 
 size_t M66ATParser::readline(char *buffer, size_t max) {
@@ -399,7 +388,6 @@ size_t M66ATParser::readline(char *buffer, size_t max) {
         }
         if (max - idx && isprint(c)) buffer[idx++] = (char) c;
     }
-
 
     buffer[idx] = 0;
     return idx;

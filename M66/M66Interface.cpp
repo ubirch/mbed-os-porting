@@ -35,17 +35,19 @@ M66Interface::M66Interface(PinName tx, PinName rx, PinName rstPin, PinName pwrPi
 
 int M66Interface::connect(const char *apn, const char *userName, const char *passPhrase)
 {
-    _m66.setTimeout(M66_CONNECT_TIMEOUT);
+    set_credentials(apn, userName, passPhrase);
+    return connect();
+}
 
-    if (!set_credentials(apn, userName, passPhrase)) {
-        return NSAPI_ERROR_PARAMETER;
-    }
+int M66Interface::connect()
+{
+    _m66.setTimeout(M66_CONNECT_TIMEOUT);
 
     if (!_m66.startup()) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
-    if (!_m66.connect(apn, userName, passPhrase)) {
+    if (!_m66.connect(_apn, _userName, _passPhrase)) {
         return NSAPI_ERROR_NO_CONNECTION;
     }
 

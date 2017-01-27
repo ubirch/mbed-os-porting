@@ -68,30 +68,6 @@ public:
     const char *getIPAddress(void);
 
     /**
-    * Get the MAC address of M66
-    *
-    * TODO: check if we need it, or to change this method
-    * @return null-terminated MAC address or null if no MAC address is assigned
-    */
-    const char *getMACAddress(void);
-
-    /** Get the local gateway
-    *
-   * TODO: check if we need it, or to change this method
-    *  @return         Null-terminated representation of the local gateway
-    *                  or null if no network mask has been recieved
-    */
-    const char *getGateway();
-
-    /** Get the local network mask
-     *
-    * TODO: check if we need it, or to change this method
-     *  @return         Null-terminated representation of the local network mask
-     *                  or null if no network mask has been recieved
-     */
-    const char *getNetmask();
-
-    /**
     * Check if M66 is connected
     *
     * @return true only if the chip has an IP address
@@ -172,17 +148,46 @@ public:
         attach(Callback<void()>(obj, method));
     }
 
+    /*! send a command */
     bool tx(const char *pattern, ...);
 
+    /**
+    * @brief Expect a formatted response, blocks until the response is received or timeout.
+    * This function will ignore URCs and return when the first non-URC has been received.
+    * @param pattern the pattern to match
+    * @return the number of matched elements
+    */
     int scan(const char *pattern, ...);
 
+    /*!
+    * @brief Expect a certain response, blocks util the response received or timeout.
+    * This function will ignore URCs and return when the first non-URC has been received.
+    * @param pattern the string to expect
+    * @return true if received or false if not
+    */
     bool rx(const char *pattern);
 
-
+    /*!
+    * Check if this line is an unsolicited result code.
+    * @param response  the pattern to match
+    * @return the code index or -1 if it is no known code
+    */
     int checkURC(const char *response);
 
+    /*!
+    * @brief Read a single line from the M66
+    * @param buffer the character line buffer to read into
+    * @param max the number of characters to read
+    * @return the number of characters read
+    */
     size_t readline(char *buffer, size_t max);
 
+    /*!
+    * @brief Read binary data into a buffer
+    * @param buffer the buffer to read into
+    * @param max the number of bytes to read
+    * @return the amount of bytes read
+    */
     size_t read(char *buffer, size_t max);
 
 
@@ -202,9 +207,6 @@ private:
 
     uint32_t _timeout;
     char _ip_buffer[16];
-    char _gateway_buffer[16];
-    char _netmask_buffer[16];
-    char _mac_buffer[18];
 };
 
 #endif

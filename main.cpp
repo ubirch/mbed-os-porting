@@ -1,15 +1,12 @@
 #include "mbed.h"
 #include "BME280.h"
-//#include "temp/ESP8266Interface.h"
-#include "M66/M66ATParser/M66ATParser.h"
-
-#define BME280_DEVICE_ADDRESS 0x77  //!< BME280 device address (same address for multiple devices)
-#define BME280_CHIP_ID        0x60  //!< BME280 chip id is fixed
+//#include "M66/M66ATParser/M66ATParser.h"
+#include "M66Interface.h"
 
 DigitalOut led1(LED1);
 
-BME280     env_sensor(I2C_SDA, I2C_SCL);
-M66ATParser modem(GSM_UART_TX, GSM_UART_RX, GSM_PWRKEY, GSM_POWER, true);
+BME280       env_sensor(I2C_SDA, I2C_SCL);
+M66Interface modem(GSM_UART_TX, GSM_UART_RX, GSM_PWRKEY, GSM_POWER, true);
 
 void led_thread(void const *args) {
     while (true) {
@@ -30,36 +27,57 @@ void bme_thread(void const *args) {
     }
 }
 
+void http_demo(NetworkInterface *net)
+{
+    TCPSocket socket;
+
+    printf("Sending HTTP request to api.ubirch.com...\r\n");
+
+    // Open a socket on the network interface, and create a TCP connection to www.arm.com
+    socket.open(net);
+
+    socket.connect("api.ubirch.com", 80);
+
+    // Send a simple http request
+    char sbuffer[] = "GET / HTTP/1.1\r\n\r\n";
+
+    int scount = socket.send(sbuffer, sizeof sbuffer);
+    printf("sent %d [%.*s]\r\n", scount, strstr(sbuffer, "\r\n")-sbuffer, sbuffer);
+
+    // Recieve a simple http response and print out the response line
+    char rbuffer[64];
+    int rcount = socket.recv(rbuffer, sizeof rbuffer);
+    printf("recv %d [%.*s]\r\n", rcount, strstr(rbuffer, "\r\n")-rbuffer, rbuffer);
+
+    // Close the socket to return its memory and bring down the network interface
+    socket.close();
+}
+
 void modem_thread(void const *args) {
 
+    printf("M66 example\r\n\r\n");
 
-    if(modem.startup()) {
-        if(modem.connect("eseye.com", "ubirch", "internet")) {
-            if(modem.open("TCP", 1, "46.231.178.105", 80)) {
-                printf("connected\r\n");
-                if(!modem.send(1, "GET / HTTP/1.1\r\n\r\n", 18)) {
-                    printf("send failed\r\n");
-                }
+    printf("\r\nConnecting...\r\n");
+    int ret = modem.connect("eseye.com", "ubirch", "internet");
+    if (ret != 0) {
+        printf("\r\nConnection error\r\n");
+        return;
+    }
+    else {
+        printf("Success\r\n\r\n");
+        printf("IP: %s\r\n", modem.get_ip_address());
 
-                uint8_t data[128];
-                int received = modem.recv(1, data, 128);
+        http_demo(&modem);
 
-                printf("received %d bytes\r\n", received);
-//                modem.close(1);
-            } else {
-                printf("ERROR: open()\r\n");
-            }
-        } else {
-            printf("ERROR: connect()\r\n");
-        }
-    } else {
-        printf("ERROR: startup()\r\n");
+        modem.disconnect();
+
+        printf("\r\nDone\r\n");
     }
 }
 
-//osThreadDef(led_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
+osThreadDef(led_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
 //osThreadDef(bme_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
-osThreadDef(modem_thread, osPriorityNormal, DEFAULT_STACK_SIZE);
+//osThreadDef(modem_thread, osPriorityNormal, DEFAULT_STACK_SIZE);
 
 // main() runs in its own thread in the OS
 // (note the calls to Thread::wait below for delays)
@@ -67,9 +85,28 @@ int main() {
 
     printf("THREADS!\r\n");
 
-//    osThreadCreate(osThread(led_thread), NULL);
+    osThreadCreate(osThread(led_thread), NULL);
 //    osThreadCreate(osThread(bme_thread), NULL);
-    osThreadCreate(osThread(modem_thread), NULL);
+//    osThreadCreate(osThread(modem_thread), NULL);
+
+    printf("M66 example\r\n\r\n");
+
+    printf("\r\nConnecting...\r\n");
+    int ret = modem.connect("eseye.com", "ubirch", "internet");
+    if (ret != 0) {
+        printf("\r\nConnection error\r\n");
+//        return -1;
+    }
+    else {
+        printf("Success\r\n\r\n");
+        printf("IP: %s\r\n", modem.get_ip_address());
+
+        http_demo(&modem);
+
+        modem.disconnect();
+
+        printf("\r\nDone\r\n");
+    }
 
     while (true) {
       led1 = !led1;
