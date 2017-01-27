@@ -22,13 +22,16 @@ Test repository for porting mbed-os to the ubirch#1
 
 #Debugging
 
-`JLinkGDBServer -if SWD -device MK82FN256xxx15` 
-
-`arm-none-eabi-gdb -x /home/nirao/gdb.init ./BUILD/UBIRCH1/GCC_ARM/mbed-os-porting.elf`
-
-`mbed compile --profile mbed-os/tools/profiles/debug.json`
+- Compile Debug Release
+	`mbed compile --profile mbed-os/tools/profiles/debug.json`
 - use `-c` to recompile everything
 
-create a gdb.init file and add this 
-- `target extended-remote localhost:2331`
-- `monitor halt`
+- In term start the GDB Server
+	`JLinkGDBServer -if SWD -device MK82FN256xxx15` 
+
+- Create a gdb.init file and add this 
+	`target extended-remote localhost:2331`
+	`monitor halt`
+
+- run `cgdb -d arm-none-eabi-gdb -x /home/user/gdb.init ./BUILD/UBIRCH1/GCC_ARM/mbed-os-porting.elf`
+
