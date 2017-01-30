@@ -35,7 +35,6 @@ bool M66ATParser::startup(void)
 {
     _powerPin = 1;
 
-    CSTDEBUG("M66.startup()\r\n");
     bool success = reset()
                    && tx("AT+QIMUX=1") && rx("OK");
 
@@ -73,7 +72,6 @@ bool M66ATParser::reset(void)
                       && (!strncmp("AT", response, 2) || !strncmp("OK", response, 2));
         }
     }
-    CSTDEBUG("M66.reset(modemOn=%d)\r\n", modemOn);
 
     if(modemOn) {
         // TODO check if the parser ignores any lines it doesn't expect
@@ -81,14 +79,11 @@ bool M66ATParser::reset(void)
                   &&  (!strncmp("ATE0", response, 3) || !strncmp("OK", response, 2))
                   && tx("AT+QIURC=1") && rx("OK");
     }
-
-    CSTDEBUG("M66.reset(modemOn=%d)\r\n", modemOn);
     return modemOn;
 }
 
 bool M66ATParser::connect(const char *apn, const char *userName, const char *passPhrase)
 {
-    CSTDEBUG("M66.connect()\r\n");
     // TODO implement setting the pin number, add it to the contructor arguments
     bool connected = false, attached = false;
     for(int tries = 0; !connected && !attached && tries < 3; tries++) {
@@ -144,17 +139,22 @@ bool M66ATParser::isConnected(void)
 
 bool M66ATParser::open(const char *type, int id, const char* addr, int port)
 {
+    int id_resp = -1;
+
     //IDs only 0-5
     if(id > 6) {
         return false;
     }
 
-    CSTDEBUG("M66.QIDNSIP\r\n");
-    if (!(tx("AT+QIDNSIP=1") && rx("OK"))) return false;
+    if (!(tx("AT+QIDNSIP=0") && rx("OK"))) return false;
 
-    int id_resp;
-    return tx("AT+QIOPEN=%d,\"%s\",\"%s\",\"%d\"", id, type, addr, port)
-        && rx("OK") && scan("%d, CONNECT OK", &id_resp);
+    if(!(tx("AT+QIOPEN=%d,\"%s\",\"%s\",\"%d\"", id, type, addr, port)
+                      && rx("OK")
+                      && scan("%d, CONNECT OK", &id_resp))) return false;
+
+    // TODO AT+QINTP to sync the Local time with NTP
+
+    return id == id_resp;
 }
 
 bool M66ATParser::send(int id, const void *data, uint32_t amount)
@@ -258,7 +258,9 @@ bool M66ATParser::close(int id)
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         if (tx("AT+QICLOSE=%d", id)
-            && scan("%d, CLOSE OK", &id_resp)) {
+            && scan("%d, CLOSE OK", &id_resp)
+            && (id == id_resp)) {
+
             return true;
         }
     }
@@ -372,7 +374,7 @@ size_t M66ATParser::readline(char *buffer, size_t max) {
         if (!_serial.readable()) {
             // nothing in the buffer, allow some sleep
 //            __WFI();
-            wait(0.05f);
+//            wait(0.05f);
             continue;
         }
 

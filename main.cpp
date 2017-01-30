@@ -61,7 +61,6 @@ void modem_thread(void const *args) {
     int ret = modem.connect("eseye.com", "ubirch", "internet");
     if (ret != 0) {
         printf("\r\nConnection error\r\n");
-        return;
     }
     else {
         printf("Success\r\n\r\n");
@@ -95,7 +94,6 @@ int main() {
     int ret = modem.connect("eseye.com", "ubirch", "internet");
     if (ret != 0) {
         printf("\r\nConnection error\r\n");
-//        return -1;
     }
     else {
         printf("Success\r\n\r\n");
