@@ -258,10 +258,9 @@ bool M66ATParser::close(int id)
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         if (tx("AT+QICLOSE=%d", id)
-            && scan("%d, CLOSE OK", &id_resp)
-            && (id == id_resp)) {
+            && scan("%d, CLOSE OK", &id_resp)) {
 
-            return true;
+            return id == id_resp;
         }
     }
 
@@ -372,9 +371,8 @@ size_t M66ATParser::readline(char *buffer, size_t max) {
     while (idx < max && timer.read() < 5) {
 
         if (!_serial.readable()) {
-            // nothing in the buffer, allow some sleep
-//            __WFI();
-//            wait(0.05f);
+            // nothing in the buffer, wait for interrupt
+            __WFI();
             continue;
         }
 
