@@ -48,7 +48,10 @@ void messageArrived(MQTT::MessageData& md)
 int main(int argc, char* argv[])
 {
     float version = 0.6;
-    char* topic = "mbed-sample";
+    char* topic = "hello/world";
+
+    const char* hostname = "hostname.com";
+    int port = 1883;
 
     logMessage("HelloMQTT: version is %.2f\r\n", version);
 
@@ -56,16 +59,12 @@ int main(int argc, char* argv[])
 
     network.connect("eseye.com", "ubirch", "internet");
 
-//    if (!network) {
-//        return -1;
-//    }
 
     MQTTNetwork mqttNetwork(&network);
 
     MQTT::Client<MQTTNetwork, Countdown> client = MQTT::Client<MQTTNetwork, Countdown>(mqttNetwork);
 
-    const char* hostname = "iot.eclipse.org";
-    int port = 1883;
+
     logMessage("Connecting to %s:%d\r\n", hostname, port);
     int rc = mqttNetwork.connect(hostname, port);
     if (rc != 0)
@@ -73,54 +72,66 @@ int main(int argc, char* argv[])
 
     MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
     data.MQTTVersion = 3;
-    data.clientID.cstring = "mbed-icraggs";
+    data.clientID.cstring = "clientID";
     data.username.cstring = "username";
     data.password.cstring = "password";
-    if ((rc = client.connect(data)) != 0)
-    logMessage("rc from MQTT connect is %d\r\n", rc);
 
-    if ((rc = client.subscribe(topic, MQTT::QOS2, messageArrived)) != 0)
-    logMessage("rc from MQTT subscribe is %d\r\n", rc);
+    if ((rc = client.connect(data)) != 0) {
+        logMessage("rc from MQTT connect is, try again %d\r\n", rc);
+    }
+
+    if ((rc = client.subscribe(topic, MQTT::QOS0, messageArrived)) != 0) {
+        logMessage("rc from MQTT subscribe is %d\r\n", rc);
+    }
+
 
     MQTT::Message message;
 
-    // QoS 0
-    char buf[100];
-    sprintf(buf, "Hello World!  QoS 0 message from app version %f\r\n", version);
-    message.qos = MQTT::QOS0;
-    message.retained = false;
-    message.dup = false;
-    message.payload = (void*)buf;
-    message.payloadlen = strlen(buf)+1;
-    rc = client.publish(topic, message);
-    while (arrivedcount < 1)
-        client.yield(100);
+    while (true) {
+        // QoS 0
+        uint32_t msgCount = 0;
 
-    // QoS 1
-    sprintf(buf, "Hello World!  QoS 1 message from app version %f\r\n", version);
-    message.qos = MQTT::QOS1;
-    message.payloadlen = strlen(buf)+1;
-    rc = client.publish(topic, message);
-    while (arrivedcount < 2)
-        client.yield(100);
+        char buf[100];
+        sprintf(buf, "Hello World! %d :: QoS 0 message from app version %f\r\n", msgCount, version);
+        message.qos = MQTT::QOS0;
+        message.retained = false;
+        message.dup = false;
+        message.payload = (void *) buf;
+        message.payloadlen = strlen(buf) + 1;
+        rc = client.publish(topic, message);
+        while (arrivedcount < 1)
+            client.yield(100);
 
-    // QoS 2
-    sprintf(buf, "Hello World!  QoS 2 message from app version %f\r\n", version);
-    message.qos = MQTT::QOS2;
-    message.payloadlen = strlen(buf)+1;
-    rc = client.publish(topic, message);
-    while (arrivedcount < 3)
-        client.yield(100);
+        msgCount++;
+        // publish Hello World message once in 10 sec
+        wait(10);
+    }
 
-    if ((rc = client.unsubscribe(topic)) != 0)
-    logMessage("rc from unsubscribe was %d\r\n", rc);
+//    // QoS 1
+//    sprintf(buf, "Hello World!  QoS 1 message from app version %f\r\n", version);
+//    message.qos = MQTT::QOS1;
+//    message.payloadlen = strlen(buf)+1;
+//    rc = client.publish(topic, message);
+//    while (arrivedcount < 2)
+//        client.yield(100);
+//
+//    // QoS 2
+//    sprintf(buf, "Hello World!  QoS 2 message from app version %f\r\n", version);
+//    message.qos = MQTT::QOS2;
+//    message.payloadlen = strlen(buf)+1;
+//    rc = client.publish(topic, message);
+//    while (arrivedcount < 3)
+//        client.yield(100);
 
-    if ((rc = client.disconnect()) != 0)
-    logMessage("rc from disconnect was %d\r\n", rc);
-
-    mqttNetwork.disconnect();
-
-    logMessage("Version %.2f: finish %d msgs\r\n", version, arrivedcount);
+//    if ((rc = client.unsubscribe(topic)) != 0)
+//    logMessage("rc from unsubscribe was %d\r\n", rc);
+//
+//    if ((rc = client.disconnect()) != 0)
+//    logMessage("rc from disconnect was %d\r\n", rc);
+//
+//    mqttNetwork.disconnect();
+//
+//    logMessage("Version %.2f: finish %d msgs\r\n", version, arrivedcount);
 
     return 0;
 }
