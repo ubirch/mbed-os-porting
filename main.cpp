@@ -87,9 +87,10 @@ int main(int argc, char* argv[])
 
     MQTT::Message message;
 
+    uint32_t msgCount = 0;
+    
     while (true) {
         // QoS 0
-        uint32_t msgCount = 0;
 
         char buf[100];
         sprintf(buf, "Hello World! %d :: QoS 0 message from app version %f\r\n", msgCount, version);
