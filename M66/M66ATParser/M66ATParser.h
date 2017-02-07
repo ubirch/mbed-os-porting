@@ -165,7 +165,7 @@ public:
     * @param pattern the string to expect
     * @return true if received or false if not
     */
-    bool rx(const char *pattern);
+    bool rx(const char *pattern, uint32_t timeout = 5);
 
     /*!
     * Check if this line is an unsolicited result code.
@@ -180,7 +180,7 @@ public:
     * @param max the number of characters to read
     * @return the number of characters read
     */
-    size_t readline(char *buffer, size_t max);
+    size_t readline(char *buffer, size_t max, uint32_t timeout);
 
     /*!
     * @brief Read binary data into a buffer
@@ -190,6 +190,7 @@ public:
     */
     size_t read(char *buffer, size_t max);
 
+    size_t flushRx(char *buffer, size_t max);
 
 private:
     BufferedSerial _serial;

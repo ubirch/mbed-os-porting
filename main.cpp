@@ -50,9 +50,6 @@ int main(int argc, char* argv[])
     float version = 0.6;
     char* topic = "hello/world";
 
-    const char* hostname = "hostname.com";
-    int port = 1883;
-
     logMessage("HelloMQTT: version is %.2f\r\n", version);
 
     M66Interface network(GSM_UART_TX, GSM_UART_RX, GSM_PWRKEY, GSM_POWER, true);
@@ -64,6 +61,8 @@ int main(int argc, char* argv[])
 
     MQTT::Client<MQTTNetwork, Countdown> client = MQTT::Client<MQTTNetwork, Countdown>(mqttNetwork);
 
+    const char* hostname = "ubirch-mqtt-dev.westeurope.cloudapp.azure.com";
+    int port = 1883;
 
     logMessage("Connecting to %s:%d\r\n", hostname, port);
     int rc = mqttNetwork.connect(hostname, port);
@@ -72,18 +71,23 @@ int main(int argc, char* argv[])
 
     MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
     data.MQTTVersion = 3;
-    data.clientID.cstring = "clientID";
-    data.username.cstring = "username";
-    data.password.cstring = "password";
+    data.clientID.cstring = "UBCli";
+    data.username.cstring = "ubi";
+    data.password.cstring = "ubirch123";
 
-    if ((rc = client.connect(data)) != 0) {
-        logMessage("rc from MQTT connect is, try again %d\r\n", rc);
+
+    for (int connectretry = 0; connectretry < 4; connectretry++) {
+        if ((rc = client.connect(data)) == 0) {
+            if ((rc = client.subscribe(topic, MQTT::QOS0, messageArrived)) == 0){
+                logMessage("Connected and subscribed\r\n");
+                break;
+            }
+            else logMessage("rc from MQTT subscribe is %d\r\n", rc);
+        }
+        else logMessage("rc from MQTT connect is %d\r\n", rc);
+
+        wait_ms(2000);
     }
-
-    if ((rc = client.subscribe(topic, MQTT::QOS0, messageArrived)) != 0) {
-        logMessage("rc from MQTT subscribe is %d\r\n", rc);
-    }
-
 
     MQTT::Message message;
 
