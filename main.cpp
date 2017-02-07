@@ -1,7 +1,9 @@
 #include "mbed.h"
 #include "BME280.h"
-//#include "M66/M66ATParser/M66ATParser.h"
 #include "M66Interface.h"
+#include "config.h"
+
+#define STACK_SIZE 24000
 
 DigitalOut led1(LED1);
 
@@ -10,7 +12,6 @@ M66Interface modem(GSM_UART_TX, GSM_UART_RX, GSM_PWRKEY, GSM_POWER, true);
 
 void led_thread(void const *args) {
     while (true) {
-//        printf("BLINK\r\n");
         led1 = !led1;
         Thread::wait(1000);
     }
@@ -58,7 +59,7 @@ void modem_thread(void const *args) {
     printf("M66 example\r\n\r\n");
 
     printf("\r\nConnecting...\r\n");
-    int ret = modem.connect("eseye.com", "ubirch", "internet");
+    int ret = modem.connect(CELL_APN, CELL_USER, CELL_PWD);
     if (ret != 0) {
         printf("\r\nConnection error\r\n");
     }
@@ -75,8 +76,8 @@ void modem_thread(void const *args) {
 }
 
 osThreadDef(led_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
-//osThreadDef(bme_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
-//osThreadDef(modem_thread, osPriorityNormal, DEFAULT_STACK_SIZE);
+osThreadDef(bme_thread,   osPriorityNormal, DEFAULT_STACK_SIZE);
+osThreadDef(modem_thread, osPriorityNormal, STACK_SIZE);
 
 // main() runs in its own thread in the OS
 // (note the calls to Thread::wait below for delays)
@@ -85,26 +86,8 @@ int main() {
     printf("THREADS!\r\n");
 
     osThreadCreate(osThread(led_thread), NULL);
-//    osThreadCreate(osThread(bme_thread), NULL);
-//    osThreadCreate(osThread(modem_thread), NULL);
-
-    printf("M66 example\r\n\r\n");
-
-    printf("\r\nConnecting...\r\n");
-    int ret = modem.connect("eseye.com", "ubirch", "internet");
-    if (ret != 0) {
-        printf("\r\nConnection error\r\n");
-    }
-    else {
-        printf("Success\r\n\r\n");
-        printf("IP: %s\r\n", modem.get_ip_address());
-
-        http_demo(&modem);
-
-        modem.disconnect();
-
-        printf("\r\nDone\r\n");
-    }
+    osThreadCreate(osThread(bme_thread), NULL);
+    osThreadCreate(osThread(modem_thread), NULL);
 
     while (true) {
       led1 = !led1;
