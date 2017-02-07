@@ -163,9 +163,10 @@ public:
     * @brief Expect a certain response, blocks util the response received or timeout.
     * This function will ignore URCs and return when the first non-URC has been received.
     * @param pattern the string to expect
+    * @param timeout default timeout is 5 seconds
     * @return true if received or false if not
     */
-    bool rx(const char *pattern);
+    bool rx(const char *pattern, uint32_t timeout = 5);
 
     /*!
     * Check if this line is an unsolicited result code.
@@ -178,9 +179,10 @@ public:
     * @brief Read a single line from the M66
     * @param buffer the character line buffer to read into
     * @param max the number of characters to read
+    * @param timeout default timeout is 5 seconds
     * @return the number of characters read
     */
-    size_t readline(char *buffer, size_t max);
+    size_t readline(char *buffer, size_t max, uint32_t timeout = 5);
 
     /*!
     * @brief Read binary data into a buffer
@@ -190,6 +192,13 @@ public:
     */
     size_t read(char *buffer, size_t max);
 
+    /*!
+    * @brief Read binary data into a buffer
+    * @param buffer the buffer to read into
+    * @param max the number of bytes to read
+    * @return the amount of bytes read
+    */
+    size_t flushRx(char *buffer, size_t max);
 
 private:
     BufferedSerial _serial;

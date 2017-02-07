@@ -22,30 +22,25 @@
 #define CSTDEBUG(...) debug_if(true, __VA_ARGS__)
 
 M66ATParser::M66ATParser(PinName txPin, PinName rxPin, PinName rstPin, PinName pwrPin, bool debug)
-    : _serial(txPin, rxPin, 1024)
-    , _packets(0), _packets_end(&_packets)
-    , _resetPin(rstPin), _powerPin(pwrPin)
-{
+        : _serial(txPin, rxPin, 1024), _packets(0), _packets_end(&_packets), _resetPin(rstPin), _powerPin(pwrPin) {
     // TODO make baud rate configurable for Modem code
     _serial.baud(115200);
 }
 
 //TODO chec if we need to make the QIMUX configurable by passing a variable
-bool M66ATParser::startup(void)
-{
+bool M66ATParser::startup(void) {
     _powerPin = 1;
 
     bool success = reset()
                    && tx("AT+QIMUX=1") && rx("OK");
 
     // TODO identify the URC for data available
-    //_parser.oob("+RECEIVE: ", this, &M66ATParser::_packet_handler);
+//    _parser.oob("+RECEIVE: ", this, &M66ATParser::_packet_handler);
 
-return success;
+    return success;
 }
 
-bool M66ATParser::reset(void)
-{
+bool M66ATParser::reset(void) {
     char response[4];
 
     CSTDEBUG("M66.reset()\r\n");
@@ -57,7 +52,7 @@ bool M66ATParser::reset(void)
     _resetPin = 1;
 
     bool modemOn = false;
-    for(int tries = 0; !modemOn && tries < 3; tries++) {
+    for (int tries = 0; !modemOn && tries < 3; tries++) {
         CSTDEBUG("M66.reset(%d)\r\n", tries);
         // switch on modem
         _resetPin = 1;
@@ -73,39 +68,45 @@ bool M66ATParser::reset(void)
         }
     }
 
-    if(modemOn) {
+    if (modemOn) {
         // TODO check if the parser ignores any lines it doesn't expect
-        modemOn = tx("ATE0") && scan("%3s", response)
-                  &&  (!strncmp("ATE0", response, 3) || !strncmp("OK", response, 2))
+//        modemOn = tx("ATE0") && scan("%3s", response)
+//                  &&  (!strncmp("ATE0", response, 3) || !strncmp("OK", response, 2))
+//                  && tx("AT+QIURC=1") && rx("OK");
+        modemOn = tx("ATE0") && rx("ATE0") && rx("OK")
+                  && tx("ATE0") && rx("OK")
                   && tx("AT+QIURC=1") && rx("OK");
     }
     return modemOn;
 }
 
-bool M66ATParser::connect(const char *apn, const char *userName, const char *passPhrase)
-{
+bool cgtt_time = false;
+
+bool M66ATParser::connect(const char *apn, const char *userName, const char *passPhrase) {
     // TODO implement setting the pin number, add it to the contructor arguments
     bool connected = false, attached = false;
-    for(int tries = 0; !connected && !attached && tries < 3; tries++) {
+    for (int tries = 0; !connected && !attached && tries < 3; tries++) {
         // TODO implement timeout
         // connecte to the mobile network
         for (int networkTries = 0; !connected && networkTries < 20; networkTries++) {
             int bearer = -1, status = -1;
-            if (tx("AT+CREG?") && scan("+CREG: %d,%d", &bearer, &status)) {
+            if (tx("AT+CREG?") && scan("+CREG: %d,%d", &bearer, &status) && rx("OK", 15)) {
                 // TODO add an enum of status codes
                 connected = status == 1 || status == 5;
             }
             // TODO check if we need to use thread wait
             wait_ms(1000);
         }
-        if(!connected) continue;
+        if (!connected) continue;
 
         // attach GPRS
-        tx("AT+QIDEACT");
-        for(int attachTries = 0; !attached && attachTries < 20; attachTries++) {
-            attached = tx("AT+CGATT=1") && rx("OK");
+        if (!(tx("AT+QIDEACT") && rx("DEACT OK", 5))) continue;
+
+        for (int attachTries = 0; !attached && attachTries < 20; attachTries++) {
+            attached = tx("AT+CGATT=1") && rx("OK", 10);
+            wait_ms(2000);
         }
-        if(!attached) continue;
+        if (!attached) continue;
 
         // set APN and finish setup
         attached =
@@ -118,13 +119,11 @@ bool M66ATParser::connect(const char *apn, const char *userName, const char *pas
     return connected && attached;
 }
 
-bool M66ATParser::disconnect(void)
-{
+bool M66ATParser::disconnect(void) {
     return tx("AT+QIDEACT") && rx("OK");
 }
 
-const char *M66ATParser::getIPAddress(void)
-{
+const char *M66ATParser::getIPAddress(void) {
     if (!(tx("AT+QILOCIP") && scan("%s", _ip_buffer))) {
         return 0;
     }
@@ -132,33 +131,31 @@ const char *M66ATParser::getIPAddress(void)
     return _ip_buffer;
 }
 
-bool M66ATParser::isConnected(void)
-{
+bool M66ATParser::isConnected(void) {
     return getIPAddress() != 0;
 }
 
-bool M66ATParser::open(const char *type, int id, const char* addr, int port)
-{
+bool M66ATParser::open(const char *type, int id, const char *addr, int port) {
     int id_resp = -1;
 
     //IDs only 0-5
-    if(id > 6) {
+    if (id > 6) {
         return false;
     }
 
     if (!(tx("AT+QIDNSIP=0") && rx("OK"))) return false;
 
-    if(!(tx("AT+QIOPEN=%d,\"%s\",\"%s\",\"%d\"", id, type, addr, port)
-                      && rx("OK")
-                      && scan("%d, CONNECT OK", &id_resp))) return false;
+    if (!(tx("AT+QIOPEN=%d,\"%s\",\"%s\",\"%d\"", id, type, addr, port)
+          && rx("OK", 10)
+          && scan("%d, CONNECT OK", &id_resp)))
+        return false;
 
     // TODO AT+QINTP to sync the Local time with NTP
 
     return id == id_resp;
 }
 
-bool M66ATParser::send(int id, const void *data, uint32_t amount)
-{
+bool M66ATParser::send(int id, const void *data, uint32_t amount) {
     tx("AT+QISRVC=1");
     rx("OK");
 
@@ -167,7 +164,7 @@ bool M66ATParser::send(int id, const void *data, uint32_t amount)
     for (unsigned i = 0; i < 2; i++) {
         if (tx("AT+QISEND=%d,%d", id, amount)
             && rx(">")
-            && _serial.write((char*)data, (int)amount) >= 0
+            && _serial.write((char *) data, (int) amount) >= 0
             && rx("SEND OK")) {
             return true;
         }
@@ -175,8 +172,7 @@ bool M66ATParser::send(int id, const void *data, uint32_t amount)
     return false;
 }
 
-void M66ATParser::_packet_handler(const char *response)
-{
+void M66ATParser::_packet_handler(const char *response) {
     int id;
     int amount;
 
@@ -188,7 +184,7 @@ void M66ATParser::_packet_handler(const char *response)
     }
     CSTDEBUG("M66 receive (%d), %d bytes\r\n", id, amount);
 
-    struct packet *packet = (struct packet*)malloc(
+    struct packet *packet = (struct packet *) malloc(
             sizeof(struct packet) + amount);
     if (!packet) {
         return;
@@ -198,8 +194,8 @@ void M66ATParser::_packet_handler(const char *response)
     packet->len = (uint32_t) amount;
     packet->next = 0;
 
-    const size_t bytesRead = read((char *)(packet + 1), (size_t) amount);
-    if(bytesRead != amount) {
+    const size_t bytesRead = read((char *) (packet + 1), (size_t) amount);
+    if (bytesRead != amount) {
         CSTDEBUG("M66 data receive failed: %d != %d\r\n", bytesRead, amount);
         free(packet);
         return;
@@ -210,8 +206,7 @@ void M66ATParser::_packet_handler(const char *response)
     _packets_end = &packet->next;
 }
 
-int32_t M66ATParser::recv(int id, void *data, uint32_t amount)
-{
+int32_t M66ATParser::recv(int id, void *data, uint32_t amount) {
     while (true) {
         // check if any packets are ready for us
         for (struct packet **p = &_packets; *p; p = &(*p)->next) {
@@ -219,7 +214,7 @@ int32_t M66ATParser::recv(int id, void *data, uint32_t amount)
                 struct packet *q = *p;
 
                 if (q->len <= amount) { // Return and remove full packet
-                    memcpy(data, q+1, q->len);
+                    memcpy(data, q + 1, q->len);
 
                     if (_packets_end == &(*p)->next) {
                         _packets_end = p;
@@ -230,10 +225,10 @@ int32_t M66ATParser::recv(int id, void *data, uint32_t amount)
                     free(q);
                     return len;
                 } else { // return only partial packet
-                    memcpy(data, q+1, amount);
+                    memcpy(data, q + 1, amount);
 
                     q->len -= amount;
-                    memmove(q+1, (uint8_t*)(q+1) + amount, q->len);
+                    memmove(q + 1, (uint8_t *) (q + 1) + amount, q->len);
 
                     return amount;
                 }
@@ -251,8 +246,7 @@ int32_t M66ATParser::recv(int id, void *data, uint32_t amount)
     }
 }
 
-bool M66ATParser::close(int id)
-{
+bool M66ATParser::close(int id) {
     int id_resp;
     // TODO check if this retry is required
     //May take a second try if device is busy
@@ -267,31 +261,27 @@ bool M66ATParser::close(int id)
     return false;
 }
 
-void M66ATParser::setTimeout(uint32_t timeout_ms)
-{
+void M66ATParser::setTimeout(uint32_t timeout_ms) {
     _timeout = timeout_ms;
 }
 
-bool M66ATParser::readable()
-{
+bool M66ATParser::readable() {
     return _serial.readable();
 }
 
-bool M66ATParser::writeable()
-{
+bool M66ATParser::writeable() {
     return _serial.writeable();
 }
 
-void M66ATParser::attach(Callback<void()> func)
-{
+void M66ATParser::attach(Callback<void()> func) {
     _serial.attach(func);
 }
 
 bool M66ATParser::tx(const char *pattern, ...) {
     char cmd[512];
 
-    while (readline(cmd, sizeof(cmd))) {
-        CIODEBUG("GSM (%02d) -> '%s'\r\n", strlen(cmd), cmd);
+    while (flushRx(cmd, sizeof(cmd))) {
+        CIODEBUG("-- GSM (%02d) ->clear buf '%s'\r\n", strlen(cmd), cmd);
         checkURC(cmd);
     }
 
@@ -303,9 +293,9 @@ bool M66ATParser::tx(const char *pattern, ...) {
     vsnprintf(cmd, 512, pattern, ap);
     va_end(ap);
 
-    CIODEBUG("GSM (%02d) <- '%s'\r\n", strlen(cmd), cmd);
     _serial.puts(cmd);
     _serial.puts("\r\n");
+    CIODEBUG("GSM (%02d) <- '%s'\r\n", strlen(cmd), cmd);
 
     return true;
 }
@@ -313,7 +303,7 @@ bool M66ATParser::tx(const char *pattern, ...) {
 int M66ATParser::scan(const char *pattern, ...) {
     char response[512];
     do {
-        readline(response, 512 - 1);
+        readline(response, 512 - 1, 5);
     } while (checkURC(response) != -1);
 
     va_list ap;
@@ -325,12 +315,12 @@ int M66ATParser::scan(const char *pattern, ...) {
     return matched;
 }
 
-bool M66ATParser::rx(const char *pattern) {
+bool M66ATParser::rx(const char *pattern, uint32_t timeout) {
     char response[512];
     size_t length = 0, patternLength = strnlen(pattern, sizeof(response));
     do {
-        length = readline(response, 512 - 1);
-        if(!length) return false;
+        length = readline(response, 512 - 1, timeout);
+        if (!length) return false;
 
         CIODEBUG("GSM (%02d) -> '%s'\r\n", strlen(response), response);
     } while (checkURC(response) != -1);
@@ -339,10 +329,17 @@ bool M66ATParser::rx(const char *pattern) {
 }
 
 int M66ATParser::checkURC(const char *response) {
-    if(!strncmp("+RECEIVE:", response, 9)) {
+    if (!strncmp("+RECEIVE:", response, 9)) {
         _packet_handler(response);
         return 0;
     }
+    if (!strncmp("SMS Ready", response, 9)
+        || !strncmp("Call Ready", response, 10)
+        || !strncmp("+CPIN: READY", response, 12)
+           ) {
+        return 0;
+    }
+
     return -1;
 }
 
@@ -352,7 +349,7 @@ size_t M66ATParser::read(char *buffer, size_t max) {
 
     size_t idx = 0;
     while (idx < max && timer.read() < 5) {
-        if(!_serial.readable()) {
+        if (!_serial.readable()) {
             __WFI();
             continue;
         }
@@ -363,12 +360,13 @@ size_t M66ATParser::read(char *buffer, size_t max) {
     return idx;
 }
 
-size_t M66ATParser::readline(char *buffer, size_t max) {
+size_t M66ATParser::readline(char *buffer, size_t max, uint32_t timeout) {
     Timer timer;
     timer.start();
 
     size_t idx = 0;
-    while (idx < max && timer.read() < 5) {
+
+    while (idx < max && timer.read() < timeout) {
 
         if (!_serial.readable()) {
             // nothing in the buffer, wait for interrupt
@@ -379,6 +377,7 @@ size_t M66ATParser::readline(char *buffer, size_t max) {
         int c = _serial.getc();
 
         if (c == '\r') continue;
+
         if (c == '\n') {
             if (!idx) {
                 idx = 0;
@@ -388,6 +387,29 @@ size_t M66ATParser::readline(char *buffer, size_t max) {
         }
         if (max - idx && isprint(c)) buffer[idx++] = (char) c;
     }
+
+    buffer[idx] = 0;
+    return idx;
+}
+
+size_t M66ATParser::flushRx(char *buffer, size_t max) {
+    Timer timer;
+    timer.start();
+
+    size_t idx = 0;
+
+    do {
+        for (int j = 0; j < max && _serial.readable(); j++) {
+            int c = _serial.getc();
+
+            if (c == '\n' && idx > 0 && buffer[idx - 1] == '\r') {
+                checkURC(buffer);
+                idx = 0;
+            } else if (max - idx && isprint(c)) {
+                buffer[idx++] = (char) c;
+            }
+        }
+    } while (idx < max && _serial.readable() && timer.read() < 5);
 
     buffer[idx] = 0;
     return idx;
